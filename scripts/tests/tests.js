@@ -231,3 +231,82 @@ QUnit.test('Try to define already loaded module', function (assert) {
     assert.equal($(divs[1]).text(), 'module1', 'Module is executed when defined!');
     assert.equal(loadedModules[1].instance, 'module1', 'Module has correct instance');
 });
+
+QUnit.test('Try to get if module is defined', function (assert) {
+    define('module3', [], function () {
+        return 'module3';
+    });
+
+    require(['module1'], function (module1) {
+    });
+
+    define('module1', ['module2', 'module3'], function (module2, module3) {
+        var fixture = $('#qunit-fixture');
+
+        fixture.append('<div>' + module2 + '</div>');
+
+        return 'module1';
+    });
+
+
+
+    var isDefinedModule1 = require.isRequired('module1');
+    var isDefinedModule2 = require.isRequired('module2');
+
+    assert.equal(isDefinedModule1, true, 'Module1 is required');
+    assert.equal(isDefinedModule2, false, 'Module2 is not required');
+
+    define('module2', [], function () {
+        return 'module2';
+    });
+
+    isDefinedModule2 = require.isRequired('module2');
+
+    assert.equal(isDefinedModule2, true, 'Module2 is required');
+});
+
+//Exceptions
+QUnit.module('Exceptions', function () {
+
+    QUnit.test('Exception - Module not loaded', function (assert) {
+        require(['module1', 'module2'], function () {
+        });
+
+        define('module1', [], function () {
+            console.log('Module1 has been loaded.')
+        });
+
+        assert.throws(function () {
+            require.finishedLoading();
+        }, 'ModulesNotLoadedException: Modules not loaded: ["anonimous", "module2"]', 'Correct exception is thrown.')
+    });
+
+    QUnit.test('Exception - Require wrong 1st argument', function (assert) {
+        assert.throws(function () {
+            require('test', function () { });
+        }, 'ModuleDependenciesTypeException: Module argument of "require" function is module dependencies which are of type "array" not "[object String]" in module "anonimous"', 'Correct exception is thrown.')
+    });
+
+    QUnit.test('Exception - Require wrong 2nd argument', function (assert) {
+        assert.throws(function () {
+            require([], 'Test');
+        }, 'ModuleCallbackTypeException: Module argument of "require" function is module callback which are of type "function" not "[object String]" in module "anonimous"', 'Correct exception is thrown.')
+    });
+
+    QUnit.test('Exception - Define wrong 1st argument', function (assert) {
+        assert.throws(function () {
+            define([], [], function () { });
+        }, 'ModuleNameTypeException: Module argument of "define" function is module name which is of type "string" not "[object Array]"', 'Correct exception is thrown.')
+    });
+
+    QUnit.test('Exception - Require wrong 2nd argument', function (assert) {
+        assert.throws(function () {
+            define('module1', 'Test', function () { });
+        }, 'ModuleDependenciesTypeException: Module argument of "define" function is module dependencies which are of type "array" not "[object String]" in module "module1"', 'Correct exception is thrown.')
+    });
+    QUnit.test('Exception - Require wrong 3rd argument', function (assert) {
+        assert.throws(function () {
+            define('module1', [], 'Test');
+        }, 'ModuleCallbackTypeException: Module argument of "define" function is module callback which are of type "function" not "[object String]" in module "module1"', 'Correct exception is thrown.')
+    });
+});

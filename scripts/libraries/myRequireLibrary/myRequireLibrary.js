@@ -1,19 +1,110 @@
-/**
- * Created by Ico on 11-Jun-16.
- */
-
 var define, require;
 
 var loadedModules = [];
 var waitingToBeLoadedModules = [];
 var notLoadedModules = [];
+var automaticModuleCheck = automaticModuleCheck || true;
 
 (function (global) {
+    var toStringFunction = Object.prototype.toString;
+    var anonimousModuleName = 'anonimous';
+
+    function Module(name, dependencies, waitingDependencies, callBack, instance) {
+        this.name = name;
+        this.dependencies = dependencies;
+        this.waitingDependencies = waitingDependencies;
+        this.callBack = callBack;
+        this.instance = instance;
+    };
+
+
+    //Exceptions
+    function ModuleNameTypeException(functionName, moduleNameType) {
+        this.message = 'Module argument of "' + functionName + '" function is module name which is of type "string" not "' + moduleNameType + '"';
+        this.name = 'ModuleNameTypeException';
+
+        this.toString = function () {
+            return this.name + ': ' + this.message;
+        }
+    }
+
+    function ModuleDependenciesTypeException(moduleName, functionName, moduleDependenciesType) {
+        this.message = 'Module argument of "' + functionName + '" function is module dependencies which are of type "array" not "' + moduleDependenciesType + '" in module "' + moduleName + '"';
+        this.name = 'ModuleDependenciesTypeException';
+
+        this.toString = function () {
+            return this.name + ': ' + this.message;
+        }
+    }
+
+    function ModuleCallbackTypeException(moduleName, functionName, moduleCallbackType) {
+        this.message = 'Module argument of "' + functionName + '" function is module callback which are of type "function" not "' + moduleCallbackType + '" in module "' + moduleName + '"';
+        this.name = 'ModuleCallbackTypeException';
+
+        this.toString = function () {
+            return this.name + ': ' + this.message;
+        }
+    }
+
+    function ModulesNotLoadedException() {
+        var notLoadedModules = [];
+
+        for (var i = 0; i < waitingToBeLoadedModules.length; i++) {
+            var module = waitingToBeLoadedModules[i];
+
+            if (inArrayIndex(module.name, notLoadedModules) === -1) {
+                if (module.name === '') {
+                    notLoadedModules.push(anonimousModuleName);
+                } else {
+                    notLoadedModules.push(module.name);
+                }
+            }
+
+            for (var j = 0; j < module.waitingDependencies.length; j++) {
+                var waitingModuleName = module.waitingDependencies[j];
+
+                if (inArrayIndex(waitingModuleName, notLoadedModules) === -1) {
+                    notLoadedModules.push(waitingModuleName);
+                }
+            }
+        }
+
+        this.message = 'Modules not loaded: ["' + notLoadedModules.join('", "') + '"]';
+        this.name = 'ModulesNotLoadedException';
+
+        this.toString = function () {
+            return this.name + ': ' + this.message;
+        }
+    }
 
     //Array helpers
-    function isInArray(moduleName, modulesArr) {
+    function grep(array, callBack) {
+        var returnArray = [];
+
+        for (var i = 0; i < array.length; i++) {
+            var result = callBack(array[i]);
+
+            if (result) {
+                returnArray.push(array[i]);
+            }
+        }
+
+        return returnArray;
+    }
+
+    function inArrayIndex(value, array) {
+        for (var i = 0; i < array.length; i++) {
+            if (array[i] === value) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    function isInModuleArray(moduleName, modulesArr) {
         for (var i = 0; i < modulesArr.length; i++) {
-            if (modulesArr[i].name == moduleName) {
+            if (modulesArr[i].name === moduleName) {
                 return true;
             }
         }
@@ -23,19 +114,19 @@ var notLoadedModules = [];
 
     //Dependencies helpers
     function getModulesDependentOnThis(moduleName) {
-        if(moduleName===''){
-            return [];
-        }else{
-            return waitingToBeLoadedModules.reduce(function (previousValue, currentValue) {
-                var index = $.inArray(moduleName, currentValue.waitingDependencies);
+        var modules = [];
+
+        if (moduleName !== '') {
+            for (var i = 0; i < waitingToBeLoadedModules.length; i++) {
+                var index = inArrayIndex(moduleName, waitingToBeLoadedModules[i].waitingDependencies);
 
                 if (index !== -1) {
-                    return previousValue.concat(currentValue);
+                    modules.push(waitingToBeLoadedModules[i]);
                 }
-
-                return previousValue;
-            }, []);
+            }
         }
+
+        return modules;
     }
 
     function tryResolveDependencies(moduleDependencies) {
@@ -45,31 +136,29 @@ var notLoadedModules = [];
 
         for (var i = 0; i < moduleDependencies.length; i++) {
             var moduleName = moduleDependencies[i];
-            var item = getLoadedModule(moduleName);
+            var indexOfLoadedModule = getLoadedModule(moduleName);
 
-            if (item.index !== -1) {
+            if (indexOfLoadedModule !== -1) {
                 if (shouldEnterDependency) {
-                    dependencies.push(item.module.instance);
+                    dependencies.push(loadedModules[indexOfLoadedModule].instance);
                 }
             } else {
-                var isInWaiting = isInArray(moduleName, waitingToBeLoadedModules);
+                var isInWaiting = isInModuleArray(moduleName, waitingToBeLoadedModules);
 
                 if (isInWaiting) {
                     shouldEnterDependency = false;
                     waitingDependencies.push(moduleName);
                 } else {
-                    item = getNotLoadedModule(moduleName);
+                    var indexOfNotLoadedModule = getNotLoadedModule(moduleName);
 
-                    if (item.index !== -1) {
-                        notLoadedModules = $.grep(notLoadedModules, function (element) {
-                            return element !== item.module;
-                        });
+                    if (indexOfNotLoadedModule !== -1) {
+                        var module = notLoadedModules.splice(indexOfNotLoadedModule, 1)[0];
 
-                        var module = tryLoadModule(item.module.name, item.module.dependencies, item.module.callBack, []);
+                        tryLoadModule(module, []);
 
-                        if (module !== null) {
-                            if(shouldEnterDependency){
-                                dependencies.push(module)
+                        if (module.instance !== null) {
+                            if (shouldEnterDependency) {
+                                dependencies.push(module.instance);
                             }
                         } else {
                             shouldEnterDependency = false;
@@ -91,142 +180,183 @@ var notLoadedModules = [];
     }
 
     //Adding helpers
-    function addToLoadedModules(moduleName, instance) {
-        loadedModules.push({
-            name: moduleName,
-            instance: instance
-        });
-    }
+    function addToNotLoadedModules(module) {
+        var found = [];
 
-    function addToWaitingToBeLoadedModules(moduleName, moduleDependencies, waitingModuleDependencies, moduleCallBack) {
-        waitingToBeLoadedModules.push({
-            name: moduleName,
-            dependencies: moduleDependencies,
-            waitingDependencies: waitingModuleDependencies,
-            callBack: moduleCallBack
-        });
-    }
-
-    function addToNotLoadedModules(moduleName, moduleDependencies, moduleCallBack) {
-        var found = false;
-
-        if (moduleName !== '') {
-            found = $.grep(notLoadedModules, function (element) {
-                return element.name === moduleName;
+        if (module.name !== '') {
+            found = grep(notLoadedModules, function (element) {
+                return element.name === module.name;
             });
         }
 
         if (found.length === 0) {
-            notLoadedModules.push({
-                name: moduleName,
-                dependencies: moduleDependencies,
-                callBack: moduleCallBack
-            });
+            notLoadedModules.push(module);
         }
     }
 
     //Getting of modules
-    function getModule(moduleName, modulesArr) {
+    function getModuleIndex(moduleName, modulesArr) {
         var index = -1;
-        var module = null;
 
         for (var i = 0; i < modulesArr.length; i++) {
-            if (modulesArr[i].name == moduleName) {
+            if (modulesArr[i].name === moduleName) {
                 index = i;
-                module = modulesArr[i];
                 break;
             }
         }
 
-        return {
-            index: index,
-            module: module
-        };
+        return index;
     }
 
     function getLoadedModule(moduleName) {
-        return getModule(moduleName, loadedModules);
+        return getModuleIndex(moduleName, loadedModules);
     }
 
     function getNotLoadedModule(moduleName) {
-        return getModule(moduleName, notLoadedModules);
+        return getModuleIndex(moduleName, notLoadedModules);
     }
 
     //Loading of modules
     function notifyDependentModules(moduleName, modulesDependentOnThis) {
-        $.each(modulesDependentOnThis, function (index, module) {
-            var indexInWaiting = $.inArray(moduleName, module.waitingDependencies);
+        for (var i = 0; i < modulesDependentOnThis.length; i++) {
+            var module = modulesDependentOnThis[i];
+            var indexInWaiting = inArrayIndex(moduleName, module.waitingDependencies);
 
             module.waitingDependencies.splice(indexInWaiting, 1);
 
             if (module.waitingDependencies.length === 0) {
-                var modulesDependentOnThis = getModulesDependentOnThis(module.name);
+                var modulesDependentOnThisInner = getModulesDependentOnThis(module.name);
 
-                loadModule(module.name, module.dependencies, module.callBack, modulesDependentOnThis);
+                loadModule(module, modulesDependentOnThisInner);
 
-                waitingToBeLoadedModules = $.grep(waitingToBeLoadedModules, function (element) {
+                waitingToBeLoadedModules = grep(waitingToBeLoadedModules, function (element) {
                     return element !== module;
                 });
             }
-        });
+        };
     }
 
-    function loadModule(moduleName, moduleDependencies, moduleCallback, modulesDependentOnThis) {
-        var dependencies = tryResolveDependencies(moduleDependencies);
+    function loadModule(module, modulesDependentOnThis) {
+        var dependencies = tryResolveDependencies(module.dependencies);
 
-        var instance = moduleCallback.apply(global, dependencies.list);
+        module.instance = module.callBack.apply(global, dependencies.list);
 
-        if (moduleName !== '') {
-            addToLoadedModules(moduleName, instance);
-            notifyDependentModules(moduleName, modulesDependentOnThis);
+        if (module.name !== '') {
+            loadedModules.push(module);
+            notifyDependentModules(module.name, modulesDependentOnThis);
         }
     }
 
-    function tryLoadModule(moduleName, moduleDependencies, moduleCallback, modulesDependentOnThis) {
-        var dependencies = tryResolveDependencies(moduleDependencies);
+    function tryLoadModule(module, modulesDependentOnThis) {
+        var dependencies = tryResolveDependencies(module.dependencies);
 
         if (dependencies.areLoaded) {
-            var instance = moduleCallback.apply(global, dependencies.list);
+            module.instance = module.callBack.apply(global, dependencies.list);
 
-            if (moduleName !== '') {
-                addToLoadedModules(moduleName, instance);
-                notifyDependentModules(moduleName, modulesDependentOnThis);
-
-                return instance;
+            if (module.name !== '') {
+                loadedModules.push(module);
+                notifyDependentModules(module.name, modulesDependentOnThis);
             }
         } else {
-            addToWaitingToBeLoadedModules(moduleName, moduleDependencies, dependencies.waiting, moduleCallback)
+            module.waitingDependencies = dependencies.waiting;
+            waitingToBeLoadedModules.push(module);
         }
 
-        return null;
+        return module;
     }
 
     define = function (moduleName, moduleDependencies, moduleCallback) {
-        var isInLoaded = isInArray(moduleName, loadedModules);
+        var moduleNameType = toStringFunction.call(moduleName);
+        var moduleDependenciesType = toStringFunction.call(moduleDependencies);
+        var moduleCallbackType = toStringFunction.call(moduleCallback);
+
+        var exception;
+
+        if (moduleNameType !== '[object String]') {
+            exception = new ModuleNameTypeException('define', moduleNameType);
+            throw exception.toString();
+        }
+
+        if (moduleDependenciesType !== '[object Array]') {
+            exception = new ModuleDependenciesTypeException(moduleName, 'define', moduleDependenciesType);
+            throw exception.toString();
+        }
+
+        if (moduleCallbackType !== '[object Function]') {
+            exception = new ModuleCallbackTypeException(moduleName, 'define', moduleCallbackType);
+            throw exception.toString();
+        }
+
+        var module = new Module(moduleName, moduleDependencies, [], moduleCallback, null);
+
+        var isInLoaded = isInModuleArray(module.name, loadedModules);
         if (isInLoaded) {
             return;
         }
 
-        var isInWaiting = isInArray(moduleName, waitingToBeLoadedModules);
+        var isInWaiting = isInModuleArray(module.name, waitingToBeLoadedModules);
         if (isInWaiting) {
             return;
         }
 
-        var modulesDependentOnThis = getModulesDependentOnThis(moduleName);
+        var modulesDependentOnThis = getModulesDependentOnThis(module.name);
 
         if (modulesDependentOnThis.length === 0) {
-            addToNotLoadedModules(moduleName, moduleDependencies, moduleCallback);
+            addToNotLoadedModules(module);
         } else {
-            tryLoadModule(moduleName, moduleDependencies, moduleCallback, modulesDependentOnThis);
+            tryLoadModule(module, modulesDependentOnThis);
         }
     };
 
     require = function (moduleDependencies, moduleCallback) {
-        tryLoadModule('', moduleDependencies, moduleCallback, []);
+        var moduleDependenciesType = toStringFunction.call(moduleDependencies);
+        var moduleCallbackType = toStringFunction.call(moduleCallback);
+
+        var exception;
+
+        if (moduleDependenciesType !== '[object Array]') {
+            exception = new ModuleDependenciesTypeException(anonimousModuleName, 'require', moduleDependenciesType);
+            throw exception.toString();
+        }
+
+        if (moduleCallbackType !== '[object Function]') {
+            exception = new ModuleCallbackTypeException(anonimousModuleName, 'require', moduleCallbackType);
+            throw exception.toString();
+        }
+
+        var module = new Module('', moduleDependencies, [], moduleCallback, null);
+
+        tryLoadModule(module, []);
     };
 
-    loadedModules.push({
-        name: 'jquery',
-        instance: $
-    });
+    //External helpers
+    require.isRequired = function (moduleName) {
+        var success = isInModuleArray(moduleName, loadedModules);
+        if (success) {
+            return true;
+        }
+
+        success = isInModuleArray(moduleName, waitingToBeLoadedModules);
+        if (success) {
+            return true;
+        }
+
+        return false;
+    };
+
+    require.finishedLoading = function () {
+        if (waitingToBeLoadedModules.length !== 0) {
+            var exception = new ModulesNotLoadedException();
+
+            throw exception.toString();
+        }
+    };
 })(this);
+
+if (automaticModuleCheck) {
+    require(['jquery'], function ($) {
+        $(document).ready(function () {
+            require.finishedLoading();
+        });
+    });
+}
