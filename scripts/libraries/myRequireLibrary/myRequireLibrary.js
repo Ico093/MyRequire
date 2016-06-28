@@ -17,7 +17,6 @@ var automaticModuleCheck = automaticModuleCheck || true;
         this.instance = instance;
     };
 
-
     //Exceptions
     function ModuleNameTypeException(functionName, moduleNameType) {
         this.message = 'Module argument of "' + functionName + '" function is module name which is of type "string" not "' + moduleNameType + '"';
@@ -47,29 +46,27 @@ var automaticModuleCheck = automaticModuleCheck || true;
     }
 
     function ModulesNotLoadedException() {
-        var notLoadedModules = [];
+        var notLoadedWaitingModules = [];
 
         for (var i = 0; i < waitingToBeLoadedModules.length; i++) {
             var module = waitingToBeLoadedModules[i];
 
-            if (inArrayIndex(module.name, notLoadedModules) === -1) {
-                if (module.name === '') {
-                    notLoadedModules.push(anonimousModuleName);
-                } else {
-                    notLoadedModules.push(module.name);
+            if (module.name !== '') {
+                if (inArrayIndex(module.name, notLoadedWaitingModules) === -1) {
+                    notLoadedWaitingModules.push(module.name);
                 }
             }
 
             for (var j = 0; j < module.waitingDependencies.length; j++) {
                 var waitingModuleName = module.waitingDependencies[j];
 
-                if (inArrayIndex(waitingModuleName, notLoadedModules) === -1) {
-                    notLoadedModules.push(waitingModuleName);
+                if (inArrayIndex(waitingModuleName, notLoadedWaitingModules) === -1) {
+                    notLoadedWaitingModules.push(waitingModuleName);
                 }
             }
         }
 
-        this.message = 'Modules not loaded: ["' + notLoadedModules.join('", "') + '"]';
+        this.message = 'Modules not loaded: ["' + notLoadedWaitingModules.join('", "') + '"]';
         this.name = 'ModulesNotLoadedException';
 
         this.toString = function () {
@@ -266,23 +263,23 @@ var automaticModuleCheck = automaticModuleCheck || true;
     }
 
     define = function (moduleName, moduleDependencies, moduleCallback) {
-        var moduleNameType = toStringFunction.call(moduleName);
-        var moduleDependenciesType = toStringFunction.call(moduleDependencies);
-        var moduleCallbackType = toStringFunction.call(moduleCallback);
+        var moduleNameType = moduleName.constructor.name;
+        var moduleDependenciesType = moduleDependencies.constructor.name;
+        var moduleCallbackType = moduleCallback.constructor.name;
 
         var exception;
 
-        if (moduleNameType !== '[object String]') {
+        if (moduleNameType !== 'String') {
             exception = new ModuleNameTypeException('define', moduleNameType);
             throw exception.toString();
         }
 
-        if (moduleDependenciesType !== '[object Array]') {
+        if (moduleDependenciesType !== 'Array') {
             exception = new ModuleDependenciesTypeException(moduleName, 'define', moduleDependenciesType);
             throw exception.toString();
         }
 
-        if (moduleCallbackType !== '[object Function]') {
+        if (moduleCallbackType !== 'Function') {
             exception = new ModuleCallbackTypeException(moduleName, 'define', moduleCallbackType);
             throw exception.toString();
         }
@@ -309,17 +306,17 @@ var automaticModuleCheck = automaticModuleCheck || true;
     };
 
     require = function (moduleDependencies, moduleCallback) {
-        var moduleDependenciesType = toStringFunction.call(moduleDependencies);
-        var moduleCallbackType = toStringFunction.call(moduleCallback);
+        var moduleDependenciesType = moduleDependencies.constructor.name;
+        var moduleCallbackType = moduleCallback.constructor.name;
 
         var exception;
 
-        if (moduleDependenciesType !== '[object Array]') {
+        if (moduleDependenciesType !== 'Array') {
             exception = new ModuleDependenciesTypeException(anonimousModuleName, 'require', moduleDependenciesType);
             throw exception.toString();
         }
 
-        if (moduleCallbackType !== '[object Function]') {
+        if (moduleCallbackType !== 'Function') {
             exception = new ModuleCallbackTypeException(anonimousModuleName, 'require', moduleCallbackType);
             throw exception.toString();
         }
