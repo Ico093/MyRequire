@@ -1,0 +1,32 @@
+{
+  "name": "requico",
+  "version": "1.0.0",
+  "description": "Library for managing of javascript dependencies",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "karma start karma.conf.js",
+    "bot": "console.log('bot')"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ico093/MyRequire.git"
+  },
+  "author": "Hristo Dimitrov",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Ico093/MyRequire/issues"
+  },
+  "homepage": "https://github.com/Ico093/MyRequire#readme",
+  "devDependencies": {
+    "jquery": "1.11.0",
+    "karma": "^1.1.0",
+    "karma-chrome-launcher": "^1.0.1",
+    "karma-coverage": "^1.0.0",
+    "karma-ie-launcher": "^1.0.0",
+    "karma-qunit": "^1.1.0",
+    "qunit": "^0.9.1"
+  }
+}

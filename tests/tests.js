@@ -1,7 +1,3 @@
-/**
- * Created by Ico on 12-Jun-16.
- */
-
 QUnit.test('Normal workflow', function (assert) {
     define('module1', [], function () {
         return 'module1';

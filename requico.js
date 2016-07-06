@@ -263,26 +263,7 @@ var automaticModuleCheck = automaticModuleCheck || true;
     }
 
     define = function (moduleName, moduleDependencies, moduleCallback) {
-        var moduleNameType = moduleName.constructor.name;
-        var moduleDependenciesType = moduleDependencies.constructor.name;
-        var moduleCallbackType = moduleCallback.constructor.name;
-
-        var exception;
-
-        if (moduleNameType !== 'String') {
-            exception = new ModuleNameTypeException('define', moduleNameType);
-            throw exception.toString();
-        }
-
-        if (moduleDependenciesType !== 'Array') {
-            exception = new ModuleDependenciesTypeException(moduleName, 'define', moduleDependenciesType);
-            throw exception.toString();
-        }
-
-        if (moduleCallbackType !== 'Function') {
-            exception = new ModuleCallbackTypeException(moduleName, 'define', moduleCallbackType);
-            throw exception.toString();
-        }
+       
 
         var module = new Module(moduleName, moduleDependencies, [], moduleCallback, null);
 
@@ -306,21 +287,7 @@ var automaticModuleCheck = automaticModuleCheck || true;
     };
 
     require = function (moduleDependencies, moduleCallback) {
-        var moduleDependenciesType = moduleDependencies.constructor.name;
-        var moduleCallbackType = moduleCallback.constructor.name;
-
-        var exception;
-
-        if (moduleDependenciesType !== 'Array') {
-            exception = new ModuleDependenciesTypeException(anonimousModuleName, 'require', moduleDependenciesType);
-            throw exception.toString();
-        }
-
-        if (moduleCallbackType !== 'Function') {
-            exception = new ModuleCallbackTypeException(anonimousModuleName, 'require', moduleCallbackType);
-            throw exception.toString();
-        }
-
+       
         var module = new Module('', moduleDependencies, [], moduleCallback, null);
 
         tryLoadModule(module, []);

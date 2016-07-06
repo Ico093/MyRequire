@@ -1,6 +1,3 @@
-/**
- * Created by Ico on 12-Jun-16.
- */
 
 function initTests() {
     loadedModules = [];
