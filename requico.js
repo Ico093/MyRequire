@@ -6,8 +6,11 @@ var notLoadedModules = [];
 var automaticModuleCheck = automaticModuleCheck || true;
 
 (function (global) {
-    var toStringFunction = Object.prototype.toString;
     var anonimousModuleName = 'anonimous';
+
+    function getType(obj) {
+        return Object.prototype.toString.call(obj).slice(8, -1);
+    };
 
     function Module(name, dependencies, waitingDependencies, callBack, instance) {
         this.name = name;
@@ -27,23 +30,24 @@ var automaticModuleCheck = automaticModuleCheck || true;
         }
     }
 
+
     function ModuleDependenciesTypeException(moduleName, functionName, moduleDependenciesType) {
         this.message = 'Module argument of "' + functionName + '" function is module dependencies which are of type "array" not "' + moduleDependenciesType + '" in module "' + moduleName + '"';
         this.name = 'ModuleDependenciesTypeException';
-
         this.toString = function () {
             return this.name + ': ' + this.message;
         }
     }
+
 
     function ModuleCallbackTypeException(moduleName, functionName, moduleCallbackType) {
         this.message = 'Module argument of "' + functionName + '" function is module callback which are of type "function" not "' + moduleCallbackType + '" in module "' + moduleName + '"';
         this.name = 'ModuleCallbackTypeException';
-
         this.toString = function () {
             return this.name + ': ' + this.message;
         }
     }
+
 
     function ModulesNotLoadedException() {
         var notLoadedWaitingModules = [];
@@ -89,6 +93,7 @@ var automaticModuleCheck = automaticModuleCheck || true;
         return returnArray;
     }
 
+
     function inArrayIndex(value, array) {
         for (var i = 0; i < array.length; i++) {
             if (array[i] === value) {
@@ -98,6 +103,7 @@ var automaticModuleCheck = automaticModuleCheck || true;
 
         return -1;
     }
+
 
     function isInModuleArray(moduleName, modulesArr) {
         for (var i = 0; i < modulesArr.length; i++) {
@@ -125,6 +131,7 @@ var automaticModuleCheck = automaticModuleCheck || true;
 
         return modules;
     }
+
 
     function tryResolveDependencies(moduleDependencies) {
         var shouldEnterDependency = true;
@@ -230,7 +237,7 @@ var automaticModuleCheck = automaticModuleCheck || true;
                     return element !== module;
                 });
             }
-        };
+        }
     }
 
     function loadModule(module, modulesDependentOnThis) {
@@ -263,7 +270,26 @@ var automaticModuleCheck = automaticModuleCheck || true;
     }
 
     define = function (moduleName, moduleDependencies, moduleCallback) {
-       
+        var moduleNameType = getType(moduleName);
+        var moduleDependenciesType = getType(moduleDependencies);
+        var moduleCallbackType = getType(moduleCallback);
+
+        var exception;
+
+        if (moduleNameType !== 'String') {
+            exception = new ModuleNameTypeException('define', moduleNameType);
+            throw exception.toString();
+        }
+
+        if (moduleDependenciesType !== 'Array') {
+            exception = new ModuleDependenciesTypeException(moduleName, 'define', moduleDependenciesType);
+            throw exception.toString();
+        }
+
+        if (moduleCallbackType !== 'Function') {
+            exception = new ModuleCallbackTypeException(moduleName, 'define', moduleCallbackType);
+            throw exception.toString();
+        }
 
         var module = new Module(moduleName, moduleDependencies, [], moduleCallback, null);
 
@@ -286,12 +312,28 @@ var automaticModuleCheck = automaticModuleCheck || true;
         }
     };
 
+
     require = function (moduleDependencies, moduleCallback) {
-       
+        var moduleDependenciesType = getType(moduleDependencies);
+        var moduleCallbackType = getType(moduleCallback);
+
+        var exception;
+
+        if (moduleDependenciesType !== 'Array') {
+            exception = new ModuleDependenciesTypeException(anonimousModuleName, 'require', moduleDependenciesType);
+            throw exception.toString();
+        }
+
+        if (moduleCallbackType !== 'Function') {
+            exception = new ModuleCallbackTypeException(anonimousModuleName, 'require', moduleCallbackType);
+            throw exception.toString();
+        }
+
         var module = new Module('', moduleDependencies, [], moduleCallback, null);
 
         tryLoadModule(module, []);
     };
+
 
     //External helpers
     require.isRequired = function (moduleName) {
